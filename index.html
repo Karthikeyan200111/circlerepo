@@ -2,72 +2,181 @@
 <html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Responsive Circles</title>
+  <meta charset="UTF-8">
+  <title>Interactive Square and Circle</title>
   <style>
     * {
       box-sizing: border-box;
+    }
+
+    body {
       margin: 0;
-      padding: 0;
-    }
-
-    html, body {
-      height: 100%;
-      background-color: white;
-    }
-
-    .container {
-      display: flex;
-      height: 100%;
-      width: 100%;
-      flex-direction: column;
-    }
-
-    .half {
-      flex: 1;
+      font-family: sans-serif;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
+      position: relative;
+    }
+
+    #wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: row;
+    }
+
+    .square, .circle {
+      display: grid;
+      border: 1px solid black;
+      overflow: hidden;
+    }
+
+    .square {
+      background-color: green;
     }
 
     .circle {
-      width: 40vw;
-      height: 40vw;
-      max-width: 100%;
-      max-height: 100%;
       border-radius: 50%;
-      border: 5px solid;
-      background-color: white;
+      background-color: red;
     }
 
-    .green {
-      border-color: green;
+    .cell {
+      border: 0.5px solid #ccc;
+      background-color: #e0f7fa;
     }
 
-    .red {
-      border-color: red;
+    #increaseButton {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 15px;
+      font-size: 14px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
     }
 
-    /* Landscape mode: side-by-side layout */
-    @media (orientation: landscape) {
-      .container {
-        flex-direction: row;
+    #increaseButton:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 768px) {
+      #wrapper {
+        flex-direction: column;
+        position: relative;
+        gap: 0;
       }
 
-      .circle {
-        width: 40vh;
-        height: 40vh;
+      #increaseButton {
+        position: absolute;
+        transform: rotate(90deg);
+        transform-origin: center;
+        right: -30px;
+        bottom: 300px;
+        margin-right: 10px;
+        font-size: 12px;
+        padding: 6px 10px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="half">
-      <div class="circle green"></div>
-    </div>
-    <div class="half">
-      <div class="circle red"></div>
-    </div>
-  </div>
+
+  <div id="wrapper"></div>
+  <button id="increaseButton">Distance: 60 mm</button>
+
+  <script>
+    function getDPI() {
+      const div = document.createElement("div");
+      div.style.width = "1in";
+      div.style.position = "absolute";
+      document.body.appendChild(div);
+      const dpi = div.offsetWidth;
+      document.body.removeChild(div);
+      return dpi;
+    }
+
+    function cmToPx(cm, dpi) {
+      return (cm / 2.54) * dpi;
+    }
+
+    function mmToPx(mm, dpi) {
+      return cmToPx(mm / 10, dpi);
+    }
+
+    function createGrid(container, sizePx, gridCount) {
+      const cellSizePx = sizePx / gridCount;
+      container.style.width = `${sizePx}px`;
+      container.style.height = `${sizePx}px`;
+      container.style.gridTemplateColumns = `repeat(${gridCount}, ${cellSizePx}px)`;
+      container.style.gridTemplateRows = `repeat(${gridCount}, ${cellSizePx}px)`;
+
+      for (let i = 0; i < gridCount * gridCount; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        container.appendChild(cell);
+      }
+    }
+
+    function renderShapes(spaceMM) {
+      const dpi = getDPI();
+      const wrapper = document.getElementById("wrapper");
+      wrapper.innerHTML = ""; // Clear previous
+
+      const sizeCM = 6.4;
+      const gridCount = 8;
+
+      const sizePx = cmToPx(sizeCM, dpi);
+      const spacePx = mmToPx(spaceMM, dpi);
+
+      const square = document.createElement("div");
+      square.className = "square";
+      createGrid(square, sizePx, gridCount);
+
+      const circle = document.createElement("div");
+      circle.className = "circle";
+      createGrid(circle, sizePx, gridCount);
+
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        square.style.marginBottom = `${spacePx}px`;
+      } else {
+        square.style.marginRight = `${spacePx}px`;
+      }
+
+      wrapper.appendChild(square);
+      wrapper.appendChild(circle);
+    }
+
+    let currentDistanceMM = 60;
+    const maxClicks = 30;
+    let clickCount = 0;
+
+    const button = document.getElementById("increaseButton");
+    button.addEventListener("click", () => {
+      if (clickCount < maxClicks) {
+        clickCount++;
+        currentDistanceMM++;
+        renderShapes(currentDistanceMM);
+        button.textContent = `Distance: ${currentDistanceMM} mm`;
+
+        if (clickCount === maxClicks) {
+          button.disabled = true;
+        }
+      }
+    });
+
+    // Initial render
+    renderShapes(currentDistanceMM);
+
+    // Re-render on resize
+    window.addEventListener("resize", () => renderShapes(currentDistanceMM));
+  </script>
 </body>
 </html>
