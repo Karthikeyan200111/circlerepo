@@ -36,7 +36,7 @@
     </div>
 
     <script>
-      const socket = new WebSocket("ws://127.0.0.1:8000/ws");
+      const socket = new WebSocket("https://circlerepo.onrender.com/ws");
 
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
