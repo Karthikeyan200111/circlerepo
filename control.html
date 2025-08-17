@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8" />
+    <title>Control Page</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin-top: 50px;
+      }
+      input,
+      button {
+        padding: 10px;
+        margin: 5px;
+      }
+      
+    </style>
+  </head>
+  <body>
+    <h2>Control Distance</h2>
+
+    <!-- Login Section -->
+    <div id="login">
+      <input type="password" id="password" placeholder="Enter password" class="classy-input" />
+      <button class="btn" onclick="checkPassword()">Login</button>
+    </div>
+
+    <!-- Control Section -->
+    <div id="controls">
+      <button class="btn" onclick="sendAction('increase')">Increase (+)</button>
+      <button class="btn" onclick="sendAction('decrease')">Decrease (-)</button>
+      <p id="distanceDisplay">Current Distance: 0</p>
+    </div>
+
+    <script>
+      const socket = new WebSocket("ws://127.0.0.1:8000/ws");
+
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.error) {
+          alert(data.error);
+        } else if (data.status === "ok") {
+          document.getElementById("login").style.display = "none";
+          document.getElementById("controls").style.display = "block";
+        } else if (data.distance !== undefined) {
+          document.getElementById("distanceDisplay").innerText =
+            "Current Distance: " + data.distance;
+        }
+      };
+
+      function checkPassword() {
+        const password = document.getElementById("password").value;
+        if (!password) {
+          alert("Enter password!");
+          return;
+        }
+        socket.send(JSON.stringify({ action: "check", password }));
+      }
+
+      function sendAction(action) {
+        const password = document.getElementById("password").value;
+        socket.send(JSON.stringify({ action, password }));
+      }
+    </script>
+  </body>
+</html>
