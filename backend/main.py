@@ -9,6 +9,11 @@ PASSWORD = "1234"   # change this to your own password
 distance = 0
 active_connections = []
 
+# ✅ New Welcome Route
+@app.get("/")
+async def read_root():
+    return {"message": "🚀 Welcome to the WebSocket Distance API! Use /ws to connect."}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -34,10 +39,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
             global distance
             if msg.get("action") == "increase":
-                if distance<90:
+                if distance < 90:
                     distance += 1
             elif msg.get("action") == "decrease":
-                if distance>0:
+                if distance > 0:
                     distance -= 1
 
             # Broadcast new distance to all clients
@@ -46,7 +51,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         active_connections.remove(websocket)
-
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
