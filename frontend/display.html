@@ -1,122 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Display Image</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/polyfill-library@3.111.0/polyfill.min.js"></script>
-  <link rel="icon" type="image/png" href="./images/favicon.png">
-  <style src="./style.css"></style>
-</head>
-<body class="flex flex-col items-center justify-center min-h-screen bg-gray-50 font-sans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Display Image</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/polyfill-library@3.111.0/polyfill.min.js"></script>
+    <link rel="icon" type="image/png" href="./images/favicon.png" />
+    <style src="./style.css"></style>
+  </head>
+  <body
+    class="flex flex-col items-center justify-center min-h-screen bg-gray-50 font-sans"
+  >
+    <!-- Shapes Wrapper -->
+    <div
+      id="wrapper"
+      class="flex flex-col md:flex-row items-center justify-center gap-6"
+    ></div>
 
-  <!-- Shapes Wrapper -->
-  <div id="wrapper" class="flex flex-col md:flex-row items-center justify-center gap-6"></div>
+    <!-- Session Box -->
+    <div
+      id="sessionBox"
+      class="mt-6 p-4 bg-white rounded-2xl shadow-md text-center hidden"
+    >
+      <p class="text-gray-700 font-medium">Your Session ID:</p>
+      <span id="sessionId" class="text-blue-600 font-mono text-lg block mt-1"
+        >--</span
+      >
+      <button
+        class="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition"
+        onclick="copySessionId()"
+      >
+        Copy Session ID
+      </button>
+    </div>
 
-  <!-- Session Box -->
-  <div id="sessionBox" class="mt-6 p-4 bg-white rounded-2xl shadow-md text-center hidden">
-    <p class="text-gray-700 font-medium">Your Session ID:</p>
-    <span id="sessionId" class="text-blue-600 font-mono text-lg block mt-1">--</span>
-    <button 
-      class="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition" 
-      onclick="copySessionId()">
-      Copy Session ID
-    </button>
-  </div>
-
-  <script>
-    function getDPI() {
-      const div = document.createElement("div");
-      div.style.width = "1in";
-      document.body.appendChild(div);
-      const dpi = div.offsetWidth;
-      div.remove();
-      return dpi;
-    }
-
-    function cmToPx(cm, dpi) {
-      return (cm / 2.54) * dpi;
-    }
-
-    function mmToPx(mm, dpi) {
-      return cmToPx(mm / 10, dpi);
-    }
-
-    function createGrid(container, sizePx, gridCount) {
-      const cellSizePx = sizePx / gridCount;
-      container.style.width = `${sizePx}px`;
-      container.style.height = `${sizePx}px`;
-      container.style.display = "grid";
-      container.style.gridTemplateColumns = `repeat(${gridCount}, ${cellSizePx}px)`;
-      container.style.gridTemplateRows = `repeat(${gridCount}, ${cellSizePx}px)`;
-
-      for (let i = 0; i < gridCount * gridCount; i++) {
-        const cell = document.createElement("div");
-        cell.className = " cell border border-gray-400";
-        container.appendChild(cell);
-      }
-    }
-
-    function renderShapes(spaceMM) {
-      const dpi = getDPI();
-      const wrapper = document.getElementById("wrapper");
-      wrapper.innerHTML = "";
-
-      const sizeCM = 6.4;
-      const gridCount = 8;
-      const sizePx = cmToPx(sizeCM, dpi);
-      const spacePx = mmToPx(spaceMM, dpi);
-
-      const square = document.createElement("div");
-      square.className = " square bg-sky-200  shadow-lg  overflow-hidden";
-      createGrid(square, sizePx, gridCount);
-
-      const circle = document.createElement("div");
-      circle.className = " circle bg-sky-200 shadow-lg rounded-full overflow-hidden";
-      createGrid(circle, sizePx, gridCount);
-
-      const isMobile = window.innerWidth <= 768;
-      if (isMobile) {
-        square.style.marginBottom = `${spacePx}px`;
-      } else {
-        square.style.marginRight = `${spacePx}px`;
+    <script>
+      function getDPI() {
+        const div = document.createElement("div");
+        div.style.width = "1in";
+        document.body.appendChild(div);
+        const dpi = div.offsetWidth;
+        div.remove();
+        return dpi;
       }
 
-      wrapper.appendChild(square);
-      wrapper.appendChild(circle);
-    }
-
-    // ✅ WebSocket
-    const socket = new WebSocket("https://circlerepo.onrender.com/ws");
-
-    socket.onopen = () => {
-      console.log("Connected. Creating session...");
-      socket.send(JSON.stringify({ action: "create" }));
-    };
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log("Received:", data);
-
-      if (data.session_id) {
-        document.getElementById("sessionId").innerText = data.session_id;
-        document.getElementById("sessionBox").classList.remove("hidden");
+      function cmToPx(cm, dpi) {
+        return (cm / 2.54) * dpi;
       }
 
-      if (data.distance !== undefined) {
-        renderShapes(data.distance);
+      function mmToPx(mm, dpi) {
+        return cmToPx(mm / 10, dpi);
       }
-    };
 
-    // ✅ Copy to clipboard
-    function copySessionId() {
-      const sessionId = document.getElementById("sessionId").innerText;
-      navigator.clipboard.writeText(sessionId).then(() => {
-        alert("Session ID copied: " + sessionId);
-        document.getElementById("sessionBox").classList.add("hidden"); // hide after copy
+      function createGrid(container, sizePx, gridCount) {
+        const cellSizePx = sizePx / gridCount;
+        container.style.width = `${sizePx}px`;
+        container.style.height = `${sizePx}px`;
+        container.style.display = "grid";
+        container.style.gridTemplateColumns = `repeat(${gridCount}, ${cellSizePx}px)`;
+        container.style.gridTemplateRows = `repeat(${gridCount}, ${cellSizePx}px)`;
+
+        for (let i = 0; i < gridCount * gridCount; i++) {
+          const cell = document.createElement("div");
+          cell.className = " cell border border-gray-400";
+          container.appendChild(cell);
+        }
+      }
+
+      function renderShapes(spaceMM) {
+        const dpi = getDPI();
+        const wrapper = document.getElementById("wrapper");
+        wrapper.innerHTML = "";
+
+        const sizeCM = 6.4;
+        const gridCount = 8;
+        const sizePx = cmToPx(sizeCM, dpi);
+        const spacePx = mmToPx(spaceMM, dpi);
+
+        const square = document.createElement("div");
+        square.className = " square bg-sky-200  shadow-lg  overflow-hidden";
+        createGrid(square, sizePx, gridCount);
+
+        const circle = document.createElement("div");
+        circle.className =
+          " circle bg-sky-200 shadow-lg rounded-full overflow-hidden";
+        createGrid(circle, sizePx, gridCount);
+
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+          square.style.marginBottom = `${spacePx}px`;
+        } else {
+          square.style.marginRight = `${spacePx}px`;
+        }
+
+        wrapper.appendChild(square);
+        wrapper.appendChild(circle);
+      }
+
+      // ✅ WebSocket
+      const socket = new WebSocket("https://circlerepo.onrender.com/ws");
+
+      socket.onopen = () => {
+        console.log("Connected. Creating session...");
+        socket.send(JSON.stringify({ action: "create" }));
+      };
+
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log("Received:", data);
+
+        if (data.session_id) {
+          document.getElementById("sessionId").innerText = data.session_id;
+          document.getElementById("sessionBox").classList.remove("hidden");
+        }
+
+        if (data.distance !== undefined) {
+          renderShapes(data.distance);
+        }
+      };
+
+      // ✅ Copy to clipboard
+      function copySessionId() {
+        const sessionId = document.getElementById("sessionId").innerText;
+        navigator.clipboard.writeText(sessionId).then(() => {
+          alert("Session ID copied: " + sessionId);
+          document.getElementById("sessionBox").classList.add("hidden"); // hide after copy
+        });
+      }
+
+      window.onerror = function (msg, url, line, col, error) {
+        alert("JS Error: " + msg + " at " + url + ":" + line + ":" + col);
+        console.log("JS Error:", msg, url, line, col, error);
+      };
+
+      window.addEventListener("unhandledrejection", function (e) {
+        alert("Unhandled Promise rejection: " + e.reason);
+        console.log("Promise Error:", e.reason);
       });
-    }
-  </script>
-</body>
+    </script>
+  </body>
 </html>
