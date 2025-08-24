@@ -1,36 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Display Image</title>
-  <style>
-    body {
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      flex-direction: column;
-    }
-    #wrapper {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: row;
-    }
-    .square, .circle {
-      display: grid;
-      border: 1px solid black;
-      overflow: hidden;
-    }
-    .square { background: green; }
-    .circle { background: red; border-radius: 50%; }
-    .cell { border: 0.5px solid #ccc; background: #e0f7fa; }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style src="./style.css"></style>
 </head>
-<body>
-  <div id="wrapper"></div>
+<body class="flex flex-col items-center justify-center min-h-screen bg-gray-50 font-sans">
+
+  <!-- Shapes Wrapper -->
+  <div id="wrapper" class="flex flex-col md:flex-row items-center justify-center gap-6"></div>
+
+  <!-- Session Box -->
+  <div id="sessionBox" class="mt-6 p-4 bg-white rounded-2xl shadow-md text-center hidden">
+    <p class="text-gray-700 font-medium">Your Session ID:</p>
+    <span id="sessionId" class="text-blue-600 font-mono text-lg block mt-1">--</span>
+    <button 
+      class="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition" 
+      onclick="copySessionId()">
+      Copy Session ID
+    </button>
+  </div>
 
   <script>
     function getDPI() {
@@ -54,12 +45,13 @@
       const cellSizePx = sizePx / gridCount;
       container.style.width = `${sizePx}px`;
       container.style.height = `${sizePx}px`;
+      container.style.display = "grid";
       container.style.gridTemplateColumns = `repeat(${gridCount}, ${cellSizePx}px)`;
       container.style.gridTemplateRows = `repeat(${gridCount}, ${cellSizePx}px)`;
 
       for (let i = 0; i < gridCount * gridCount; i++) {
         const cell = document.createElement("div");
-        cell.className = "cell";
+        cell.className = " cell border border-gray-400";
         container.appendChild(cell);
       }
     }
@@ -75,38 +67,54 @@
       const spacePx = mmToPx(spaceMM, dpi);
 
       const square = document.createElement("div");
-      square.className = "square";
+      square.className = " square bg-sky-200  shadow-lg  overflow-hidden";
       createGrid(square, sizePx, gridCount);
 
       const circle = document.createElement("div");
-      circle.className = "circle";
+      circle.className = " circle bg-sky-200 shadow-lg rounded-full overflow-hidden";
       createGrid(circle, sizePx, gridCount);
 
       const isMobile = window.innerWidth <= 768;
-      if (isMobile) square.style.marginBottom = `${spacePx}px`;
-      else square.style.marginRight = `${spacePx}px`;
+      if (isMobile) {
+        square.style.marginBottom = `${spacePx}px`;
+      } else {
+        square.style.marginRight = `${spacePx}px`;
+      }
 
       wrapper.appendChild(square);
       wrapper.appendChild(circle);
     }
 
-    // async function fetchDistance() {
-    //   const response = await fetch("http://127.0.0.1:8000/distance");
-    //   const data = await response.json();
-    //   renderShapes(data.distance);
-    // }
+    // ✅ WebSocket
     const socket = new WebSocket("https://circlerepo.onrender.com/ws");
+
+    socket.onopen = () => {
+      console.log("Connected. Creating session...");
+      socket.send(JSON.stringify({ action: "create" }));
+    };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log(data.distance)
+      console.log("Received:", data);
+
+      if (data.session_id) {
+        document.getElementById("sessionId").innerText = data.session_id;
+        document.getElementById("sessionBox").classList.remove("hidden");
+      }
+
       if (data.distance !== undefined) {
         renderShapes(data.distance);
       }
     };
 
-    // setInterval(fetchDistance, 1000); // poll every 1 sec
-    // fetchDistance();
+    // ✅ Copy to clipboard
+    function copySessionId() {
+      const sessionId = document.getElementById("sessionId").innerText;
+      navigator.clipboard.writeText(sessionId).then(() => {
+        alert("Session ID copied: " + sessionId);
+        document.getElementById("sessionBox").classList.add("hidden"); // hide after copy
+      });
+    }
   </script>
 </body>
 </html>

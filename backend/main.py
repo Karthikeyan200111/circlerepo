@@ -1,56 +1,64 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
-import json
-import uvicorn
+import json, uvicorn, uuid
 
 app = FastAPI()
 
-PASSWORD = "1234"   # change this to your own password
-distance = 0
-active_connections = []
+# sessions store distance per session
+sessions = {}  # {session_id: {"distance": int, "connections": [WebSocket]}}
 
-# ✅ New Welcome Route
 @app.get("/")
 async def read_root():
-    return {"message": "🚀 Welcome to the WebSocket Distance API! Use /ws to connect."}
+    return {"message": "🚀 Welcome! Use /ws?session_id=xxx to connect."}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    active_connections.append(websocket)
 
     try:
         while True:
             data = await websocket.receive_text()
             msg = json.loads(data)
 
-            # ✅ Password check request
-            if msg.get("action") == "check":
-                if msg.get("password") == PASSWORD:
-                    await websocket.send_text(json.dumps({"status": "ok"}))
-                else:
-                    await websocket.send_text(json.dumps({"error": "Invalid password"}))
+            # ✅ Create a new session
+            if msg.get("action") == "create":
+                session_id = str(uuid.uuid4())[:8]  # short ID
+                sessions[session_id] = {"distance": 60, "connections": [websocket]}  # start at 60
+                await websocket.send_text(json.dumps({"session_id": session_id, "distance": 60}))
                 continue
 
-            # ✅ Increase / Decrease request
-            if msg.get("password") != PASSWORD:
-                await websocket.send_text(json.dumps({"error": "Invalid password"}))
+            # ✅ Join existing session
+            if msg.get("action") == "join":
+                session_id = msg.get("session_id")
+                if session_id not in sessions:
+                    await websocket.send_text(json.dumps({"error": "Invalid session ID"}))
+                    continue
+                sessions[session_id]["connections"].append(websocket)
+                await websocket.send_text(json.dumps({"status": "ok"}))
+                await websocket.send_text(json.dumps({"status": "joined", "distance": sessions[session_id]["distance"]}))
                 continue
 
-            global distance
+            # ✅ Must provide session_id for control actions
+            session_id = msg.get("session_id")
+            if session_id not in sessions:
+                await websocket.send_text(json.dumps({"error": "Invalid session ID"}))
+                continue
+
+            # ✅ Increase/Decrease with bounds 60–90
             if msg.get("action") == "increase":
-                if distance < 90:
-                    distance += 1
+                if sessions[session_id]["distance"] < 90:
+                    sessions[session_id]["distance"] += 1
             elif msg.get("action") == "decrease":
-                if distance > 0:
-                    distance -= 1
+                if sessions[session_id]["distance"] > 60:
+                    sessions[session_id]["distance"] -= 1
 
-            # Broadcast new distance to all clients
-            for conn in active_connections:
-                await conn.send_text(json.dumps({"distance": distance}))
+            # ✅ Broadcast updated distance only in this session
+            for conn in sessions[session_id]["connections"]:
+                await conn.send_text(json.dumps({"distance": sessions[session_id]["distance"]}))
 
     except WebSocketDisconnect:
-        active_connections.remove(websocket)
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+        # remove disconnected client from all sessions
+        for sid in list(sessions.keys()):
+            if websocket in sessions[sid]["connections"]:
+                sessions[sid]["connections"].remove(websocket)
+                if not sessions[sid]["connections"]:
+                    del sessions[sid]  # cleanup empty session
