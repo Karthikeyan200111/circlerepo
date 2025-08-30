@@ -63,7 +63,7 @@
 
         for (let i = 0; i < gridCount * gridCount; i++) {
           const cell = document.createElement("div");
-          cell.className = " cell border border-gray-400";
+          cell.className = " cell border-[0.1px] border-gray-300";
           container.appendChild(cell);
         }
       }
@@ -73,7 +73,7 @@
         const wrapper = document.getElementById("wrapper");
         wrapper.innerHTML = "";
 
-        const sizeCM = 6.4;
+        const sizeCM = 1.516;
         const gridCount = 8;
         const sizePx = cmToPx(sizeCM, dpi);
         const spacePx = mmToPx(spaceMM, dpi);

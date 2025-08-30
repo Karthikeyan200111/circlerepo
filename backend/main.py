@@ -48,7 +48,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if sessions[session_id]["distance"] < 90:
                     sessions[session_id]["distance"] += 1
             elif msg.get("action") == "decrease":
-                if sessions[session_id]["distance"] > 60:
+                if sessions[session_id]["distance"] > 0:
                     sessions[session_id]["distance"] -= 1
 
             # ✅ Broadcast updated distance only in this session
