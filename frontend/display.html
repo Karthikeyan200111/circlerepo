@@ -15,7 +15,7 @@
     <!-- Shapes Wrapper -->
     <div
       id="wrapper"
-      class="flex flex-col md:flex-row items-center justify-center gap-6"
+      class="flex flex-col md:flex-row items-center justify-center"
     ></div>
 
     <!-- Session Box -->
@@ -63,7 +63,7 @@
 
         for (let i = 0; i < gridCount * gridCount; i++) {
           const cell = document.createElement("div");
-          cell.className = " cell border-[0.1px] border-gray-300";
+          cell.className = " cell border-[0.1noepx] border-gray-300";
           container.appendChild(cell);
         }
       }
@@ -84,7 +84,7 @@
 
         const circle = document.createElement("div");
         circle.className =
-          " circle bg-sky-200 shadow-lg rounded-full overflow-hidden";
+          " circle bg-sky-200 border shadow-lg rounded-full overflow-hidden";
         createGrid(circle, sizePx, gridCount);
 
         const isMobile = window.innerWidth <= 768;
@@ -99,7 +99,7 @@
       }
 
       // ✅ WebSocket
-      const socket = new WebSocket("https://circlerepo.onrender.com/ws");
+      const socket = new WebSocket("http://127.0.0.1:8000/ws");
 
       socket.onopen = () => {
         console.log("Connected. Creating session...");
@@ -116,6 +116,7 @@
         }
 
         if (data.distance !== undefined) {
+          console.log(data.distance)
           renderShapes(data.distance);
         }
       };
