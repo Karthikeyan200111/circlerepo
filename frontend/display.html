@@ -86,7 +86,7 @@
         const sizeCM = 1.516;
         const gridCount = 8;
         const rawSizePx = cmToPx(sizeCM, dpi);
-        const spacePx = mmToPx(spaceMM, dpi);
+        const spacePx = Math.ceil(mmToPx(spaceMM, dpi));
 
         const square = document.createElement("div");
         square.className = "bg-sky-200";
@@ -124,6 +124,7 @@
 
         if (data.session_id) {
           document.getElementById("sessionId").innerText = data.session_id;
+          document.getElementById("wrapper").classList.remove("mt-6");
           document.getElementById("sessionBox").classList.remove("hidden");
         }
 
