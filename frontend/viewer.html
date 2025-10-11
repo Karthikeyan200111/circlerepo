@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Viewer — VR Fusional Vergence</title>
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui, Arial;
+    background: #f8fafc;
+    color: #0f172a;
+    height: 100vh;
+    width:100vw;
+  }
+  .top {  
+    padding: 12px;
+    background: #0f172a;
+    color: #fff;
+  }
+  .title{
+    font-size:12px;
+    font-weight:500;
+    width: 100%;
+    text-align: center;
+
+  }
+  .viewer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 8px;
+  }
+  canvas {
+    background: #e6eef8;
+    border-radius: 6px;
+    width: 40%;
+    height: 64vh;
+    max-width: 360px;
+  }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="title">Viewer — VR Fusional Vergence</div>
+  </div>
+  <div class="viewer">
+    <canvas id="L"></canvas>
+    <canvas id="R"></canvas>
+  </div>
+
+  <script>
+   const WS_URL = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws";
+
+    const Lctx = document.getElementById("L").getContext("2d");
+    const Rctx = document.getElementById("R").getContext("2d");
+
+    let delta = 0;
+    let base = "BO";
+    let target = "dot";
+    let ppi = 400;
+    let s_mm = 40;
+    let image_url = "";
+
+    // Resize canvas properly for mobile (avoid oval distortion)
+    function resizeCanvas(ctx) {
+      const canvas = ctx.canvas;
+      const dpr = window.devicePixelRatio || 1;
+
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      ctx.scale(dpr, dpr);
+    }
+
+    // Convert Δ to pixels
+    function pxPerDelta(d) {
+      const s_m = (Number(s_mm) || 40) / 1000; // eye → screen (m)
+      const shift_m = (d / 100) * s_m; // 1Δ = 1 cm at 1m
+      const inches = shift_m / 0.0254;
+      return Math.round(inches * (Number(ppi) || 400));
+    }
+
+    function draw() {
+      resizeCanvas(Lctx);
+      resizeCanvas(Rctx);
+
+      const L = Lctx;
+      const R = Rctx;
+      const w = L.canvas.clientWidth;
+      const h = L.canvas.clientHeight;
+
+      L.clearRect(0, 0, w, h);
+      R.clearRect(0, 0, w, h);
+
+      L.fillStyle = R.fillStyle = "#e6eef8";
+      L.fillRect(0, 0, w, h);
+      R.fillRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2;
+      const px = pxPerDelta(delta);
+      const leftOffset = base === "BO" ? px : -px;
+      const rightOffset = -leftOffset;
+
+      drawTarget(L, cx + leftOffset, cy);
+      drawTarget(R, cx + rightOffset, cy);
+
+      // top markers
+      L.fillStyle = R.fillStyle = "#cbd5e1";
+      L.fillRect(cx - 2, 0, 4, 12);
+      R.fillRect(cx - 2, 0, 4, 12);
+
+      // small corner image (optional)
+      if (image_url) {
+        const img = new Image();
+        img.src = image_url;
+        img.onload = () => {
+          const iw = Math.min(100, img.width);
+          const ih = Math.min(100, img.height);
+          L.drawImage(img, 8, 8, iw, ih);
+        };
+      }
+    }
+
+    function drawTarget(ctx, x, y) {
+      ctx.save();
+      ctx.fillStyle = "#0f172a";
+      const size = Math.min(ctx.canvas.clientWidth, ctx.canvas.clientHeight);
+      const radius = size * 0.04; // scale dot size relative to canvas
+
+      if (target === "dot") {
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (target === "cross") {
+        ctx.fillRect(x - 4, y - 20, 8, 40);
+        ctx.fillRect(x - 20, y - 4, 40, 8);
+      } else {
+        ctx.font = "36px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("E", x, y);
+      }
+      ctx.restore();
+    }
+
+    const session = prompt("Enter session ID to join as viewer:");
+    if (!session) alert("No session id entered — refresh to try again.");
+    else {
+      const ws = new WebSocket(WS_URL);
+      ws.onopen = () =>
+        ws.send(
+          JSON.stringify({ action: "join", session_id: session, role: "viewer" })
+        );
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === "state" || msg.delta !== undefined) {
+          delta = msg.delta ?? delta;
+          base = msg.base ?? base;
+          target = msg.target ?? target;
+          ppi = msg.ppi ?? ppi;
+          s_mm = msg.s_mm ?? s_mm;
+          image_url = msg.image_url ?? image_url;
+          draw();
+        }
+      };
+      ws.onclose = () => console.warn("WS closed");
+      ws.onerror = (e) => console.error("WS error", e);
+    }
+
+    window.addEventListener("resize", draw);
+    draw();
+  </script>
+</body>
+</html>

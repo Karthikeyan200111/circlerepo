@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Controller — VR Fusional Vergence</title>
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui, Arial;
+    background: #f8fafc;
+    color: #0f172a;
+    height: 100vh;
+    width:100vw;
+  }
+  .top{background:#0f172a;color:#fff;padding:12px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;padding:10px;}
+  input,select,button{padding:8px;border-radius:6px;border:1px solid #e2e8f0}
+  button{cursor:pointer;background:#0f172a;color:#fff;border:0;font-weight:600}
+  .controls{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;padding:10px;}
+  .btn-danger{background:#dc2626}
+  .btn-success{background:#059669}
+  .log{margin-top:10px;border:1px dashed #e2e8f0;padding:8px;border-radius:8px;background:#fff;max-height:220px;overflow:auto}
+  .small{font-size:13px;color:#64748b}
+  .big{font-size:20px;font-weight:700}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="big">Controller — VR Fusional Vergence</div>
+  </div>
+  <div style="margin-top:8px; padding:10px;">
+    <strong>Session ID:</strong> <span id="sessionIdDisplay">[not created]</span>
+  </div>
+  <div style="margin-top:12px; padding:10px;">
+    <label>Subject ID</label>
+    <input id="subj" placeholder="P001">
+  </div>
+  <div style="margin-top:8px;padding:10px;">
+    <label>Trial #</label>
+    <input id="trial" type="number" value="1">
+  </div>
+
+  <div class="grid">
+    <div>
+      <label>Base direction</label>
+      <select id="base">
+        <option value="BO">Base-out (convergence)</option>
+        <option value="BI">Base-in (divergence)</option>
+      </select>
+    </div>
+    <div>
+      <label>Target</label>
+      <select id="target">
+        <option value="dot">Dot</option>
+        <option value="cross">Cross</option>
+        <option value="E">Letter E</option>
+      </select>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction: column; gap:8px;margin-top:8px;padding:10px;">
+    <div style="flex:1">
+      <label>PPI (pixels per inch)</label>
+      <input id="ppi" type="number" value="400">
+    </div>
+    <div style="width:160px">
+      <label>Eye → screen (mm)</label>
+      <input id="s" type="number" value="40">
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="dec">−1Δ</button>
+    <button id="inc">+1Δ</button>
+    <button id="auto">Auto</button>
+    <button id="reset">Reset</button>
+    <button id="break" class="btn-danger">Record Break</button>
+    <button id="rec" class="btn-success">Record Recovery</button>
+    <button id="download">Download CSV (server)</button>
+    <button id="copy">Copy CSV (server)</button>
+  </div>
+
+  <div style="margin-top:12px">
+    <div class="log" id="log"></div>
+  </div>
+
+<script>
+  const WS_URL = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws";
+
+  let ws, session_id = null, autoInterval = null;
+
+  const subjEl = document.getElementById('subj');
+  const trialEl = document.getElementById('trial');
+  const baseEl = document.getElementById('base');
+  const targetEl = document.getElementById('target');
+  const ppiEl = document.getElementById('ppi');
+  const sEl = document.getElementById('s');
+  const logEl = document.getElementById('log');
+
+  function updateLogFromArray(arr) {
+    logEl.innerHTML = '';
+    if (!arr.length) { logEl.textContent = 'No records yet'; return; }
+    arr.forEach(e => {
+      const d = document.createElement('div');
+      d.style.padding = '6px 0';
+      d.textContent = `${e.event} | Subj:${e.subject} | Trial:${e.trial} | ${e.base} | ${e.delta} Δ | ${e.timestamp}`;
+      logEl.appendChild(d);
+    });
+  }
+
+  function connect() {
+    ws = new WebSocket(WS_URL);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        action: "create",
+        base: baseEl.value,
+        target: targetEl.value,
+        ppi: Number(ppiEl.value)||400,
+        s_mm: Number(sEl.value)||40,
+        subject: subjEl.value || 'Unknown',
+        trial: trialEl.value || '1'
+      }));
+    };
+    ws.onmessage = ev => {
+      const msg = JSON.parse(ev.data);
+    // Show session ID when created
+      if (msg.session_id && !session_id) {
+          session_id = msg.session_id;
+          document.getElementById("sessionIdDisplay").textContent = session_id;
+          alert("Session created: " + session_id); // optional
+      }
+      if (msg.type === "log_update" || msg.log) updateLogFromArray(msg.log || []);
+    };
+  }
+  connect();
+
+  function ensureSession() { if (!session_id) { alert("No session yet"); return false; } return true; }
+  function sendAction(action, extra={}) { if (!ensureSession()) return; ws.send(JSON.stringify({ action, session_id, ...extra })); }
+
+  document.getElementById('inc').addEventListener('click', ()=> sendAction("increase"));
+  document.getElementById('dec').addEventListener('click', ()=> sendAction("decrease"));
+  document.getElementById('reset').addEventListener('click', ()=> sendAction("reset"));
+  document.getElementById('auto').addEventListener('click', toggleAuto);
+  document.getElementById('break').addEventListener('click', ()=> recordEvent("record_break"));
+  document.getElementById('rec').addEventListener('click', ()=> recordEvent("record_recovery"));
+
+  [baseEl, targetEl, ppiEl, sEl, subjEl, trialEl].forEach(el => {
+    el.addEventListener('change', ()=> {
+      const map = { base: baseEl.value, target: targetEl.value, ppi: Number(ppiEl.value)||400, s_mm: Number(sEl.value)||40, subject: subjEl.value||'Unknown', trial: trialEl.value||'1'};
+      Object.keys(map).forEach(k => sendAction(`set_${k}`, {[k]: map[k]}));
+    });
+  });
+
+  function recordEvent(action) { sendAction(action, { timestamp: new Date().toISOString() }); }
+
+  function toggleAuto() {
+    const btn = document.getElementById('auto');
+    if (autoInterval) { clearInterval(autoInterval); autoInterval = null; btn.innerText="Auto"; }
+    else { btn.innerText="Stop"; autoInterval=setInterval(()=>sendAction("increase"),1000); }
+  }
+
+  document.getElementById('download').addEventListener('click', ()=> { if (!ensureSession()) return; window.open(`${location.protocol}//${location.host}/download/${session_id}`, '_blank'); });
+  document.getElementById('copy').addEventListener('click', async ()=> { 
+    if (!ensureSession()) return;
+    const r = await fetch(`${location.protocol}//${location.host}/download/${session_id}`);
+    const txt = await r.text();
+    await navigator.clipboard.writeText(txt);
+    alert("CSV copied to clipboard");
+  });
+</script>
+</body>
+</html>
